@@ -1,0 +1,81 @@
+{
+  "whisper_model_size": "small",
+  "flan_model_name": "google/flan-t5-base",
+  "spacy_model_name": "en_core_web_sm",
+  "max_workers": 4,
+  "batch_size": 10,
+  "max_audio_duration": 300,
+  "input_dir": "data/input",
+  "output_dir": "data/output",
+  "temp_dir": "data/temp",
+  "models_dir": "models",
+  "srs_template_path": "templates/srs_template.json",
+  "ambiguity_threshold": 0.7,
+  "max_ambiguity_questions": 5,
+  "processing": {
+    "enable_parallel_processing": true,
+    "max_memory_usage": "4GB",
+    "enable_caching": true,
+    "cache_ttl": 3600
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "requirements_system.log",
+    "max_file_size": "10MB",
+    "backup_count": 5
+  },
+  "database": {
+    "type": "sqlite",
+    "file": "requirements.db",
+    "backup_interval": 24,
+    "cleanup_days": 30
+  },
+  "export": {
+    "default_format": "json",
+    "include_metadata": true,
+    "compress_output": false
+  },
+  "models": {
+    "whisper": {
+      "model_size": "small",
+      "language": "en",
+      "task": "transcribe"
+    },
+    "flan_t5": {
+      "model_name": "google/flan-t5-base",
+      "max_length": 512,
+      "temperature": 0.7,
+      "num_beams": 4
+    },
+    "spacy": {
+      "model_name": "en_core_web_sm",
+      "disable_components": []
+    }
+  },
+  "ambiguity_detection": {
+    "patterns": {
+      "modal_verbs": ["should", "could", "might", "may", "can", "will", "shall"],
+      "quantifiers": ["often", "sometimes", "usually", "typically", "generally", "frequently"],
+      "adjectives": ["fast", "slow", "large", "small", "many", "few", "several", "multiple"],
+      "quality_terms": ["easy", "difficult", "simple", "complex", "user-friendly", "intuitive"],
+      "performance_terms": ["efficient", "effective", "reliable", "secure", "stable", "robust"],
+      "time_terms": ["immediately", "quickly", "soon", "eventually", "periodically"],
+      "size_terms": ["big", "huge", "tiny", "massive", "enormous", "minimal"]
+    },
+    "threshold": 0.7,
+    "max_questions": 5
+  },
+  "srs_generation": {
+    "template": "ieee_830",
+    "include_appendices": true,
+    "include_glossary": true,
+    "include_acronyms": true,
+    "auto_categorize_requirements": true
+  },
+  "performance": {
+    "enable_profiling": false,
+    "memory_monitoring": true,
+    "cpu_monitoring": true,
+    "disk_monitoring": true
+  }
+}
