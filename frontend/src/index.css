@@ -32,3 +32,33 @@ code {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Subtle background pattern */
+.bg-grid {
+  background-image: linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Fancy underline for nav links */
+.nav-underline {
+  position: relative;
+}
+.nav-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 0;
+  height: 2px;
+  background: white;
+  transition: width 200ms ease;
+}
+.nav-underline:hover::after {
+  width: 100%;
+}
+
+/* Glass effect */
+.glass {
+  backdrop-filter: saturate(140%) blur(8px);
+  background-color: rgba(255, 255, 255, 0.12);
+}

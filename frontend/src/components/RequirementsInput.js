@@ -15,6 +15,7 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [validationErrors, setValidationErrors] = useState([]);
   
   // Audio recording states
   const [isRecording, setIsRecording] = useState(false);
@@ -103,11 +104,59 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Validation function for text input
+  const validateTextInput = (text) => {
+    const errors = [];
+    
+    // Check for numbers
+    if (/\d/.test(text)) {
+      errors.push('Text should not contain numbers');
+    }
+    
+    // Check for special symbols (allow only letters, spaces, and basic punctuation including smart quotes)
+    // Allows: a-z, A-Z, spaces, . , ! ? - ' " and Unicode smart quotes/apostrophes
+    if (/[^a-zA-Z\s.,!?\-'"\u2018\u2019\u201C\u201D]/g.test(text)) {
+      errors.push('Text should not contain special symbols (only letters and basic punctuation allowed)');
+    }
+    
+    // Check minimum word count (50 words)
+    const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+    if (wordCount < 50) {
+      errors.push(`Minimum 50 words required (current: ${wordCount} words)`);
+    }
+    
+    return errors;
+  };
+
+  // Handle text input change with validation
+  const handleTextInputChange = (e) => {
+    const newText = e.target.value;
+    setTextInput(newText);
+    
+    if (newText.trim()) {
+      const errors = validateTextInput(newText);
+      setValidationErrors(errors);
+    } else {
+      setValidationErrors([]);
+    }
+  };
+
   const processRequirements = async () => {
     setIsProcessing(true);
     setError(null);
+    setValidationErrors([]);
 
     try {
+      // Validate text input before processing
+      if (inputType === 'text' && textInput.trim()) {
+        const errors = validateTextInput(textInput);
+        if (errors.length > 0) {
+          setError('Please fix validation errors before processing');
+          setIsProcessing(false);
+          return;
+        }
+      }
+
       let response;
 
       if (inputType === 'text' && textInput.trim()) {
@@ -154,7 +203,32 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
       }
 
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'An error occurred');
+      // Handle validation errors from backend
+      if (err.response?.data?.validation_errors) {
+        const validationData = err.response.data.validation_errors;
+        
+        if (Array.isArray(validationData) && validationData.length > 0) {
+          // Check if it's file validation errors (has 'file' and 'errors' properties)
+          if (validationData[0].file && validationData[0].errors) {
+            // Multiple file validation errors
+            const errorMessages = validationData.map(item => 
+              `${item.file}: ${item.errors.join(', ')}`
+            );
+            setError('Validation failed for uploaded files');
+            setValidationErrors(errorMessages);
+          } else {
+            // Single audio validation errors (array of strings)
+            setError(err.response.data.error || 'Audio content validation failed');
+            setValidationErrors(validationData);
+          }
+        } else if (typeof validationData === 'string') {
+          // Single error message
+          setError(err.response.data.error || 'Validation failed');
+          setValidationErrors([validationData]);
+        }
+      } else {
+        setError(err.response?.data?.error || err.message || 'An error occurred');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -162,8 +236,24 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
 
   const generateSRS = async (resultsData) => {
     try {
+      // Handle different result formats
+      let requirementsArray;
+      
+      if (Array.isArray(resultsData)) {
+        // Already an array
+        requirementsArray = resultsData;
+      } else if (resultsData.results && Array.isArray(resultsData.results)) {
+        // Batch result with nested results array (from file upload)
+        requirementsArray = resultsData.results;
+      } else if (resultsData.status) {
+        // Single result object (from text input)
+        requirementsArray = [resultsData];
+      } else {
+        requirementsArray = [resultsData];
+      }
+      
       const response = await axios.post('http://localhost:8000/api/generate-srs', {
-        results: resultsData,
+        results: requirementsArray,
         project_info: projectInfo
       });
       
@@ -270,20 +360,55 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
               </label>
               <textarea
                 value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
+                onChange={handleTextInputChange}
                 rows={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  validationErrors.length > 0 ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
                 placeholder="Enter your requirements here..."
               />
+              
+              {/* Validation Guidelines */}
+              <div className="mt-2 text-sm text-gray-600">
+                <p className="font-medium mb-1">Requirements:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>No numbers allowed</li>
+                  <li>No special symbols (only letters and basic punctuation: . , ! ? - ' ")</li>
+                  <li>Minimum 50 words required</li>
+                </ul>
+              </div>
+
+              {/* Validation Errors */}
+              {validationErrors.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {validationErrors.map((error, index) => (
+                    <div key={index} className="flex items-start space-x-2 text-sm text-red-600">
+                      <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* Audio Recording */}
           {inputType === 'audio' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Audio Recording
               </label>
+              
+              {/* Validation Guidelines */}
+              <div className="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                <p className="font-medium mb-1">Recording Requirements:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>No numbers allowed in speech</li>
+                  <li>No special symbols (only letters and basic punctuation: . , ! ? - ' ")</li>
+                  <li>Minimum 50 words required</li>
+                  <li>Speak clearly and at a moderate pace</li>
+                </ul>
+              </div>
               
               {!audioBlob ? (
                 <div className="text-center p-8 border-2 border-dashed border-gray-300 rounded-lg">
@@ -350,6 +475,17 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
           {/* File Upload */}
           {inputType === 'file' && (
             <div>
+              {/* Validation Guidelines */}
+              <div className="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                <p className="font-medium mb-1">File Content Requirements:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>No numbers allowed in content</li>
+                  <li>No special symbols (only letters and basic punctuation: . , ! ? - ' ")</li>
+                  <li>Minimum 50 words required per file</li>
+                  <li>Supported formats: .txt, .wav, .mp3, .m4a, .flac</li>
+                </ul>
+              </div>
+              
               <div
                 {...getRootProps()}
                 className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors duration-200 ${
@@ -409,9 +545,20 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
 
         {/* Error Display */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-            <AlertCircle className="h-5 w-5 text-red-500" />
-            <span className="text-red-700">{error}</span>
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center space-x-2 mb-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              <span className="text-red-700 font-semibold">{error}</span>
+            </div>
+            {validationErrors.length > 0 && (
+              <div className="mt-3 ml-7 space-y-2">
+                {validationErrors.map((err, index) => (
+                  <div key={index} className="text-sm text-red-600">
+                    • {err}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -419,7 +566,7 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
         <div className="text-center">
           <button
             onClick={processRequirements}
-            disabled={isProcessing || (!textInput.trim() && uploadedFiles.length === 0 && !audioBlob)}
+            disabled={isProcessing || (!textInput.trim() && uploadedFiles.length === 0 && !audioBlob) || (inputType === 'text' && validationErrors.length > 0)}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-8 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center space-x-2 mx-auto"
           >
             {isProcessing ? (

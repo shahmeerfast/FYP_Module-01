@@ -15,6 +15,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 import logging
+import re
 
 # Import our existing modules
 from main_orchestrator import RequirementsOrchestrator
@@ -29,6 +30,41 @@ logger = logging.getLogger(__name__)
 
 # Initialize orchestrator
 orchestrator = RequirementsOrchestrator()
+
+def validate_text_content(text: str) -> dict:
+    """
+    Validate text content against requirements:
+    - No numbers allowed
+    - No special symbols (only letters and basic punctuation)
+    - Minimum 50 words required
+    
+    Returns:
+        dict with 'valid' (bool) and 'errors' (list of error messages)
+    """
+    errors = []
+    
+    if not text or not text.strip():
+        return {'valid': False, 'errors': ['Text content is empty']}
+    
+    # Check for numbers
+    if re.search(r'\d', text):
+        errors.append('Text should not contain numbers')
+    
+    # Check for special symbols (allow only letters, spaces, and basic punctuation)
+    # Allow: a-z, A-Z, spaces, . , ! ? - ' " and Unicode smart quotes
+    if re.search(r'[^a-zA-Z\s.,!?\-\'"\u2018\u2019\u201C\u201D]', text):
+        errors.append('Text should not contain special symbols (only letters and basic punctuation allowed)')
+    
+    # Check minimum word count (50 words)
+    words = text.strip().split()
+    word_count = len([word for word in words if word])
+    if word_count < 50:
+        errors.append(f'Minimum 50 words required (current: {word_count} words)')
+    
+    return {
+        'valid': len(errors) == 0,
+        'errors': errors
+    }
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -95,6 +131,18 @@ def process_audio_requirement():
             input_data = {'type': 'audio', 'file_path': temp_file_path}
             result = orchestrator.process_single_requirement(input_data)
             
+            # Validate the transcribed text
+            if result.get('status') == 'completed':
+                transcribed_text = result.get('original_text', '')
+                validation_result = validate_text_content(transcribed_text)
+                
+                if not validation_result['valid']:
+                    return jsonify({
+                        'error': 'Audio content validation failed',
+                        'validation_errors': validation_result['errors'],
+                        'transcribed_text': transcribed_text
+                    }), 400
+            
             # Add project info to result
             result['project_info'] = project_info
             result['source_type'] = 'audio_recording'
@@ -125,6 +173,7 @@ def process_batch_requirements():
         # Create temporary directory for processing
         with tempfile.TemporaryDirectory() as temp_dir:
             results = []
+            validation_errors_list = []
             
             for file in files:
                 if file.filename == '':
@@ -134,19 +183,41 @@ def process_batch_requirements():
                 file_path = os.path.join(temp_dir, file.filename)
                 file.save(file_path)
                 
-                # Determine input type
+                # Determine input type and read content for validation
                 if file.filename.lower().endswith(('.wav', '.mp3', '.m4a', '.flac')):
                     input_data = {'type': 'audio', 'file_path': file_path}
+                    # Process first to get transcription
+                    result = orchestrator.process_single_requirement(input_data)
+                    content_to_validate = result.get('original_text', '')
                 else:
                     # Read text file
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
+                    content_to_validate = content
                     input_data = {'type': 'text', 'content': content}
+                    # Process the requirement
+                    result = orchestrator.process_single_requirement(input_data)
                 
-                # Process the requirement
-                result = orchestrator.process_single_requirement(input_data)
+                # Validate the content
+                validation_result = validate_text_content(content_to_validate)
+                
+                if not validation_result['valid']:
+                    validation_errors_list.append({
+                        'file': file.filename,
+                        'errors': validation_result['errors']
+                    })
+                
                 result['source_file'] = file.filename
+                result['validation'] = validation_result
                 results.append(result)
+            
+            # If any validation errors, return them
+            if validation_errors_list:
+                return jsonify({
+                    'error': 'File content validation failed',
+                    'validation_errors': validation_errors_list,
+                    'details': 'One or more files do not meet the requirements'
+                }), 400
             
             # Add project info to results
             batch_result = {

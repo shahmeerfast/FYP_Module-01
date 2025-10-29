@@ -126,10 +126,15 @@ class SRSGenerator:
         cleaned_purposes = [self._clean_extracted_text(purpose) for purpose in purposes if purpose]
         
         if cleaned_purposes:
-            srs.sections['introduction']['purpose'] = self._merge_text(cleaned_purposes)
+            srs.sections['introduction']['purpose'] = (
+                "The purpose of the System is " + self._merge_text(cleaned_purposes)
+            )
         else:
             # Fallback: extract from original text
-            srs.sections['introduction']['purpose'] = self._extract_purpose_from_original_text(data['all_text'])
+            extracted = self._extract_purpose_from_original_text(data['all_text'])
+            srs.sections['introduction']['purpose'] = (
+                "The purpose of the System is " + extracted
+            )
         
         # Scope - combine all scopes, but clean up malformed text
         scopes = [fields.get('Scope', '') for fields in data['all_fields'] if fields.get('Scope')]
@@ -145,13 +150,9 @@ class SRSGenerator:
         definitions = self._extract_definitions(data['all_text'])
         srs.sections['introduction']['definitions'] = definitions
         
-        # Overview
-        srs.sections['introduction']['overview'] = (
-            f"This document specifies the requirements for the system based on "
-            f"{data['successful_requirements']} processed requirements. "
-            f"The system is designed to meet the functional and non-functional "
-            f"requirements outlined in the following sections."
-        )
+        # Overview - summarize requirement text to show domain-specific context
+        overview = self._build_overview_from_text(data['all_text'], data['successful_requirements'])
+        srs.sections['introduction']['overview'] = overview
     
     def _generate_overall_description(self, srs: SRSDocument):
         """Generate Overall Description section"""
@@ -218,7 +219,7 @@ class SRSGenerator:
                     assumptions.extend(self._parse_assumptions(cleaned_assum))
         
         if not assumptions:
-            assumptions = ['System requirements are clearly defined', 'Stakeholders are available for consultation']
+            assumptions = []
         
         srs.sections['overall_description']['assumptions'] = list(set(assumptions))
     
@@ -232,7 +233,7 @@ class SRSGenerator:
         unique = list(dict.fromkeys(filtered))  # Remove duplicates while preserving order
         
         if not unique:
-            return "To be defined"
+            return ""
         
         if len(unique) == 1:
             return unique[0]
@@ -294,11 +295,17 @@ class SRSGenerator:
         # Remove numbered lists and malformed patterns
         import re
         
-        # Remove patterns like "2. scope or boundaries of this system 3. ..."
-        text = re.sub(r'\d+\.\s*[^.]*?(?=\d+\.|$)', '', text)
+        # Remove standalone numbers followed by period (e.g., "4.", "6.", etc.)
+        text = re.sub(r'\s+\d+\.\s+', ' ', text)
+        
+        # Remove numbers at the start of the text
+        text = re.sub(r'^\d+\.\s+', '', text)
         
         # Remove patterns like "2. unknown 3. ..."
-        text = re.sub(r'\d+\.\s*unknown\s*\d+\.', '', text)
+        text = re.sub(r'\d+\.\s*unknown\s*', '', text, flags=re.IGNORECASE)
+        
+        # Remove any remaining standalone digits with periods in the middle of text
+        text = re.sub(r'\s\d+\.\s', ' ', text)
         
         # Clean up multiple spaces and periods
         text = re.sub(r'\s+', ' ', text)
@@ -326,7 +333,7 @@ class SRSGenerator:
             if any(indicator in sentence.lower() for indicator in purpose_indicators):
                 return sentence.capitalize()
         
-        return "System requirements specification and implementation"
+        return ""
     
     def _extract_scope_from_original_text(self, text_list: List[str]) -> str:
         """Extract scope from original text when AI extraction fails"""
@@ -341,7 +348,7 @@ class SRSGenerator:
             if any(indicator in sentence.lower() for indicator in scope_indicators):
                 return sentence.capitalize()
         
-        return "Complete system implementation and deployment"
+        return ""
     
     def _extract_functions_from_original_text(self, text_list: List[str]) -> List[str]:
         """Extract functions from original text when AI extraction fails"""
@@ -362,7 +369,7 @@ class SRSGenerator:
                             functions.append(func_desc)
                             break
         
-        return functions[:5] if functions else ['Core system functionality']
+        return functions[:5] if functions else []
     
     def _extract_stakeholders_from_original_text(self, text_list: List[str]) -> List[str]:
         """Extract stakeholders from original text when AI extraction fails"""
@@ -376,7 +383,7 @@ class SRSGenerator:
             if word in stakeholder_indicators:
                 stakeholders.append(word.capitalize())
         
-        return list(set(stakeholders)) if stakeholders else ['System users']
+        return list(set(stakeholders)) if stakeholders else []
     
     def _extract_constraints_from_original_text(self, text_list: List[str]) -> List[str]:
         """Extract constraints from original text when AI extraction fails"""
@@ -390,7 +397,7 @@ class SRSGenerator:
                 if any(indicator in sentence.lower() for indicator in constraint_indicators):
                     constraints.append(sentence)
         
-        return constraints[:3] if constraints else ['System performance requirements']
+        return constraints[:3] if constraints else []
     
     def _extract_dependencies_from_original_text(self, text_list: List[str]) -> List[str]:
         """Extract dependencies from original text when AI extraction fails"""
@@ -404,7 +411,34 @@ class SRSGenerator:
                 if any(indicator in sentence.lower() for indicator in dependency_indicators):
                     dependencies.append(sentence)
         
-        return dependencies[:3] if dependencies else ['External system integration']
+        return dependencies[:3] if dependencies else []
+
+    def _build_overview_from_text(self, text_list: List[str], total_successful: int) -> str:
+        """Create an overview paragraph that includes requirement-related text.
+        Takes the first 1-2 informative sentences from the provided requirements text
+        and appends a brief note about document coverage.
+        """
+        if not text_list:
+            return (
+                f"This document specifies the requirements for the system based on {total_successful} processed requirements. "
+                f"The system is designed to meet the functional and non-functional requirements outlined in the following sections."
+            )
+
+        joined = ' '.join([t.strip() for t in text_list if t and t.strip()])
+        sentences = [s.strip() for s in joined.split('.') if s.strip()]
+        summary_parts = sentences[:2] if sentences else []
+        summary = '. '.join(summary_parts)
+        if summary:
+            # cap overly long summary
+            if len(summary) > 500:
+                summary = summary[:500].rstrip() + '...'
+            return (
+                f"{summary}. This SRS consolidates {total_successful} processed requirement(s) and presents the system's scope, key functions, stakeholders, and constraints."
+            )
+        return (
+            f"This document specifies the requirements for the system based on {total_successful} processed requirements. "
+            f"The system is designed to meet the functional and non-functional requirements outlined in the following sections."
+        )
     
     # Note: Functional requirements, non-functional requirements, performance requirements,
     # interface requirements, glossary, and acronyms extraction methods are removed
@@ -485,6 +519,9 @@ class SRSGenerator:
         {''.join(f'<li>{defn}</li>' for defn in srs.sections['introduction']['definitions'])}
     </ul>
     
+    <h3>1.4 Overview</h3>
+    <p>{srs.sections['introduction']['overview']}</p>
+    
     <h2>2. Overall Description</h2>
     <h3>2.1 Product Functions</h3>
     <ul>
@@ -501,9 +538,7 @@ class SRSGenerator:
         {''.join(f'<li>{constraint}</li>' for constraint in srs.sections['overall_description']['constraints'])}
     </ul>
     
-    <h2>3. Note</h2>
-    <p><em>This is an initial SRS document generated by Module 1. It contains only the Introduction and Overall Description sections. 
-    Specific Requirements and other detailed sections will be generated in subsequent modules of the requirements engineering system.</em></p>
+    
 </body>
 </html>
 """

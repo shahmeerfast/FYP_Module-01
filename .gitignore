@@ -67,10 +67,9 @@ data/temp/*
 !data/temp/.gitkeep
 
 # Output files (generated)
-data/output/batch_results_*.json
-data/output/processed/*
-data/output/raw/*
-data/output/exports/*
+data/output/**
+!data/output/.gitkeep
+srs_*.html
 srs_*.html
 srs_*.json
 !srs_ali.html
@@ -81,6 +80,12 @@ srs_*.json
 !package.json
 !package-lock.json
 !frontend/public/manifest.json
+
+# Model artifacts
+*.safetensors
+*.bin
+data/output/models/**
+data/output/experiments/**
 
 # Keep directory structure
 !.gitkeep

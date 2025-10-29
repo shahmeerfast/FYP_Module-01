@@ -33,7 +33,7 @@ const Home = () => {
   return (
     <div className="animate-fade-in">
       {/* Hero Section */}
-      <div className="text-center py-16">
+      <div className="text-center py-16 bg-white/70 glass rounded-2xl card-shadow">
         <h1 className="text-5xl font-bold text-gray-900 mb-6">
           Requirements Engineering
           <span className="text-blue-600"> Made Simple</span>
@@ -70,7 +70,7 @@ const Home = () => {
             <Link
               key={index}
               to={feature.link}
-              className="bg-white p-8 rounded-xl card-shadow hover:shadow-xl transition-shadow duration-200 group"
+              className="bg-white p-8 rounded-xl card-shadow hover:shadow-xl transition-all duration-200 group hover:-translate-y-1"
             >
               <div className="text-center">
                 <div className="mb-4 flex justify-center group-hover:scale-110 transition-transform duration-200">

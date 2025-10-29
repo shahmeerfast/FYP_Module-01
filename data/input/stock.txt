@@ -1,0 +1,194 @@
+Chapter 1:
+Introduction:
+The purpose of this project proposal document is to outline the development of an
+advanced stock price forecasting system made to specifically take into account the
+unique characteristics of the Pakistan Stock Exchange (PSX). Conventional forecasting
+methods mostly base their projections on historical price trends. Therefore,, these
+techniques frequently fail to take into consideration abrupt changes in the market
+environment and the non-linear linkages that control fluctuations in stock prices. This
+project aims to improve upon these traditional techniques by incorporating both
+traditional statistical techniques and modern machine learning techniques. The primary
+focus is on improving stock price predictions by taking into account not only the
+historical stock prices but also sentiment analysis and macro-economic indicators. [5]
+The PSX market is influenced by a wide range of factors such as political
+developments, economic conditions and market sentiments. Traditional time-series
+forecasting methods like ARIMA often struggle to account for abrupt market changes
+and non-linear factors. This limitation is highlighted even more in PSX as it is a highly
+volatile market that is heavily influenced by external factors. The proposed system
+addresses these challenges by incorporating state-of-the-art machine learning
+techniques like recurrent neural networks (RNNs) with traditional statistical models like
+ARIMA or Bayesian Structural Time-Series (BST). Moreover, sentiment analysis from
+social media and news sources as well as macro-economic factors like Gold and Oil
+prices are also incorporated to increase the prediction accuracy further.
+
+Problem Statement:
+PSX is a highly unpredictable market and projections have a big impact on investing
+strategies. Stock price forecasting has long been a major field of research because
+there are so many intricately interacting variables that affect the market, such as
+political developments, investor mood and economic indicators which makes accurately
+predicting stock prices extremely difficult. Conventional forecasting methods, such
+ARIMA and Bayesian time series models, mostly base their projections on past price
+trends because of which these techniques fail to take into consideration abrupt changes
+in the market environment and the non-linear linkages that control fluctuations in stock
+
+prices. This difficulty is made much more acute in the case of the Pakistan Stock
+Exchange (PSX) by the market’s susceptibility to regional political and economic
+situations. The proposed system provides a solution to these difficulties by incorporating
+modern machine learning techniques along with traditional statistical techniques,
+macro-economic data and sentiment analysis to accurately predict stock prices. In
+recent years, machine learning has emerged as a powerful tool for handling complex
+data patterns, allowing for more sophisticated and adaptable forecasting models. It is
+feasible to extract patterns from stock market data and get deeper insights by utilizing
+the capabilities of neural networks, such as RNN and Long Short-Term Memory (LSTM)
+models. These neural network models may also help identify trends that conventional
+methods would overlook [1]. Furthermore, sentiment analysis may be included into
+stock price prediction for increased prediction accuracy. This technique analyzes the
+tone and sentiment of news articles, social media postings, and financial data to provide
+useful context.
+
+Problem Solution:
+To address the challenges outlined in the problem statement, this project proposes the
+development of an advanced stock price forecasting system that combines sentiment
+analysis and traditional time-series forecasting methods like ARIMA or Bayesian
+Structural Time-Series (BST) with recurrent neural networks (RNNs) in order to
+overcome the issues mentioned in the problem description. The model is especially
+made to forecast stock prices on the Pakistan Stock Exchange by taking into account
+historical stock prices as well as sentiment data gathered from social media sites and
+financial news. Additionally, macro-economic indicators like gold and oil prices are also
+considered to further improve the predictive accuracy. By adding outside variables like
+investor mood, political news, and global economic indicators, the aim is to increase the
+accuracy of stock price forecasts.
+The project objectives are listed below:
+● Develop an Advanced Stock Forecasting Model
+● Incorporate Sentiment Analysis
+● Leverage Macro-Economic Indicators
+● Enhance Prediction Accuracy (as compared to traditional methods)
+● Provide a Predictive Analysis Platform for Investors
+● Fill a Market Gap
+● Validate Model Performance
+
+Scope:
+Module 1- Historical Price Prediction using LSTM
+Use the LSTM Recurrent Neural Network model to predict stock prices based on
+historical trends.
+1. Train the LSTM model on historical prices.
+2. Output predicted prices in a Time-Series format.
+
+Module 2- Sentiment Analysis
+Perform sentiment analysis on data gathered from different media and news sources.
+1. Gather sentiment data from various media and news sources.
+2. Filter into buckets i.e related to a particular stock, political data,
+macro-economics related etc. Identify whether it’ll have an effect on global
+(market) or local (stock) scope.
+3. Classify the data into positive/negative sentiment.
+4. Use SVMorCNNswith Adaboost/Catboost for optimized classification.
+
+Module 3- Time-Series Forecasting
+Perform traditional Time-Series forecasting on historical stock prices using ARIMA or
+Bayesian Structural Time-Series (BST).
+1. Apply the ARIMA/BST for Time-Series Forecasting.
+2. Output the forecasted results.
+
+Module 4- Front-End
+Develop a user-friendly front-end for the web application.
+1. Use React for handling front-end related operations.
+2. Add data visualization enhancements to aid users in understanding complex data
+such as stock prediction graphs, sentiment analysis cues etc
+
+Module 5- Back-End
+Develop a comprehensive back-end for API and database handling.
+1. Use Flask and Gunicorn for API handling.
+2. Use Docker for containerization.
+3. Use Nginx/Caddy to implement a reverse proxy for the website.
+
+Module 6- Ensemble Model Architecture
+Merging Sentiment Analysis, LSTM and BST (or ARIMA) Outputs through a Dense
+Layer/CNN
+1. Feature 1: Multi-input model architecture combining LSTM, Sentiment Analysis,
+and BST (or ARIMA) outputs.
+
+2. Feature 2: Flexible integration using either Dense layers or CNN for advanced
+feature extraction
+User Classes and Characteristics:
+
+User Class Characteristics Technical Expertise Use Case
+Individual Investors Active in stock
+market, rely on
+predictive tools for
+making informed
+decisions
+
+Low to Medium Use the platform to
+get stock price
+predictions and
+sentiment analysis to
+guide personal
+investments.
+
+Financial Analysts Professionals
+analyzing market
+trends, interested in
+detailed insights and
+prediction accuracy.
+
+High Utilize advanced
+prediction tools and
+sentiment analysis to
+prepare financial
+reports and forecasts.
+
+Stock Brokerage
+Firms
+
+Require high
+accuracy and
+real-time updates for
+stock market trends
+to support client
+investments.
+
+High Leverage prediction
+accuracy and market
+trends to offer
+advisory and trading
+services to clients.
+
+Market Researchers Conducting market
+studies, focus on
+long-term trends and
+macroeconomic
+factors
+
+Medium Use forecasts for
+research reports,
+market trends
+analysis, and
+long-term predictions.
+
+Regulatory Bodies Monitor market
+conditions to ensure
+fair trading practices,
+interested in
+large-scale market
+insights.
+
+Medium Use market forecasts
+and sentiment
+analysis for market
+regulation and
+policy-making.
+
+General Public Non-expert users
+curious about stock
+
+Low Access simple
+forecasts and market
+
+market trends but not
+actively involved in
+trading.
+
+sentiment to stay
+informed about
+market trends and
+developments.
