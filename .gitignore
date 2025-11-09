@@ -103,3 +103,8 @@ dist/
 build/
 *.egg-info/
 
+
+requirements_env.zip
+*.zip
+
+
