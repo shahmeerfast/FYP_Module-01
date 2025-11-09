@@ -20,6 +20,9 @@ import re
 # Import our existing modules
 from main_orchestrator import RequirementsOrchestrator
 from srs_generator import SRSGenerator
+from json_to_srs_pdf import load_srs_from_json, render_html, save_pdf_or_html
+from srs_model_generator import SRSModelGenerator
+from srs_model_generator import SRSModelGenerator
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -30,12 +33,15 @@ logger = logging.getLogger(__name__)
 
 # Initialize orchestrator
 orchestrator = RequirementsOrchestrator()
+# Ensure audio transcription is enabled for the API unless explicitly disabled elsewhere
+try:
+    orchestrator.processor.config.enable_whisper = True
+except Exception:
+    pass
 
 def validate_text_content(text: str) -> dict:
     """
     Validate text content against requirements:
-    - No numbers allowed
-    - No special symbols (only letters and basic punctuation)
     - Minimum 50 words required
     
     Returns:
@@ -46,15 +52,9 @@ def validate_text_content(text: str) -> dict:
     if not text or not text.strip():
         return {'valid': False, 'errors': ['Text content is empty']}
     
-    # Check for numbers
-    if re.search(r'\d', text):
-        errors.append('Text should not contain numbers')
-    
-    # Check for special symbols (allow only letters, spaces, and basic punctuation)
-    # Allow: a-z, A-Z, spaces, . , ! ? - ' " and Unicode smart quotes
-    if re.search(r'[^a-zA-Z\s.,!?\-\'"\u2018\u2019\u201C\u201D]', text):
-        errors.append('Text should not contain special symbols (only letters and basic punctuation allowed)')
-    
+    # Require at least one alphabetic character (allow numbers/symbols but not only them)
+    if not re.search(r'[A-Za-z]', text):
+        errors.append('Text must include at least one alphabetic character (A-Z).')
     # Check minimum word count (50 words)
     words = text.strip().split()
     word_count = len([word for word in words if word])
@@ -91,6 +91,11 @@ def process_single_requirement():
         if not content:
             return jsonify({'error': 'No content provided'}), 400
         
+        # Validate content
+        validation = validate_text_content(content)
+        if not validation['valid']:
+            return jsonify({'error': 'Text content validation failed', 'validation_errors': validation['errors']}), 400
+
         # Prepare input data
         if input_type == 'text':
             input_data = {'type': 'text', 'content': content}
@@ -130,6 +135,10 @@ def process_audio_requirement():
             # Process the audio requirement
             input_data = {'type': 'audio', 'file_path': temp_file_path}
             result = orchestrator.process_single_requirement(input_data)
+
+            # If processing failed (e.g., whisper disabled or other error), return 400
+            if result.get('status') == 'failed':
+                return jsonify({'error': result.get('error', 'Audio processing failed')}), 400
             
             # Validate the transcribed text
             if result.get('status') == 'completed':
@@ -253,9 +262,9 @@ def generate_srs():
         if not isinstance(results, list):
             results = [results]
         
-        # Generate SRS
-        srs_generator = SRSGenerator()
-        srs = srs_generator.generate_srs(results, project_info)
+        # Generate SRS content using the model-based generator
+        model_gen = SRSModelGenerator()
+        srs = model_gen.generate_srs(results, project_info)
         
         # Convert SRS to dictionary for JSON response
         srs_dict = {
@@ -316,8 +325,67 @@ def download_srs(format):
         logger.error(f"Error downloading SRS: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/generate-srs-pdf', methods=['POST'])
+def generate_srs_pdf():
+    """Generate SRS PDF (or HTML fallback) directly from posted JSON and return the file."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        # If caller sent 'results', generate SRS via model first
+        def _is_empty_sections(sec: dict) -> bool:
+            if not isinstance(sec, dict):
+                return True
+            intro = sec.get('introduction') or {}
+            overall = sec.get('overall_description') or {}
+            has_intro = any(bool(str(intro.get(k, '')).strip()) for k in ['purpose','scope','overview']) or bool(intro.get('definitions'))
+            has_overall = any(bool(overall.get(k)) for k in ['product_functions','user_characteristics','constraints','assumptions','dependencies']) or bool(str(overall.get('product_perspective','')).strip())
+            return not (has_intro or has_overall)
+
+        sections = data.get('sections') or data.get('srs_sections')
+        if ((not sections) or _is_empty_sections(sections)) and data.get('results'):
+            model_gen = SRSModelGenerator()
+            project_info = data.get('project_info', {})
+            srs = model_gen.generate_srs(data['results'], project_info)
+            html = render_html({
+                'document_id': srs.document_id,
+                'title': srs.title,
+                'version': srs.version,
+                'date': srs.date,
+                'author': srs.author,
+                'sections': srs.sections,
+            })
+            out_path = save_pdf_or_html(html, f"srs_{srs.document_id}.pdf")
+            return send_file(out_path, as_attachment=True, download_name=os.path.basename(out_path))
+
+        # Else load SRS directly from provided JSON (accepts 'sections' or 'srs_sections')
+        import tempfile, os, json as _json
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
+            _json.dump(data, f, ensure_ascii=False)
+            temp_json = f.name
+
+        try:
+            srs_doc = load_srs_from_json(temp_json)
+            html = render_html(srs_doc)
+            out_path = save_pdf_or_html(html, f"srs_{srs_doc.document_id}.pdf")
+            return send_file(out_path, as_attachment=True, download_name=os.path.basename(out_path))
+        finally:
+            try:
+                os.unlink(temp_json)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.error(f"Error generating SRS PDF: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 def generate_html_content(srs_data):
-    """Generate HTML content for SRS document"""
+    """Generate HTML content for SRS document.
+    Accepts either srs_data['sections'] or srs_data['srs_sections'].
+    """
+    sections = srs_data.get('sections') or srs_data.get('srs_sections') or {}
+    intro = sections.get('introduction', {})
+    overall = sections.get('overall_description', {})
     return f"""
 <!DOCTYPE html>
 <html>
@@ -347,45 +415,45 @@ def generate_html_content(srs_data):
     <div class="section">
         <h2>1. Introduction</h2>
         <h3>1.1 Purpose</h3>
-        <p>{srs_data['sections']['introduction']['purpose']}</p>
+        <p>{intro.get('purpose','')}</p>
         
         <h3>1.2 Scope</h3>
-        <p>{srs_data['sections']['introduction']['scope']}</p>
+        <p>{intro.get('scope','')}</p>
         
         <h3>1.3 Definitions</h3>
         <ul>
-            {''.join(f'<li>{defn}</li>' for defn in srs_data['sections']['introduction']['definitions'])}
+            {''.join(f'<li>{defn}</li>' for defn in intro.get('definitions', []))}
         </ul>
         
         <h3>1.4 Overview</h3>
-        <p>{srs_data['sections']['introduction']['overview']}</p>
+        <p>{intro.get('overview','')}</p>
     </div>
     
     <div class="section">
         <h2>2. Overall Description</h2>
         <h3>2.1 Product Functions</h3>
         <ul>
-            {''.join(f'<li>{func}</li>' for func in srs_data['sections']['overall_description']['product_functions'])}
+            {''.join(f'<li>{func}</li>' for func in overall.get('product_functions', []))}
         </ul>
         
         <h3>2.2 User Characteristics</h3>
         <ul>
-            {''.join(f'<li>{user}</li>' for user in srs_data['sections']['overall_description']['user_characteristics'])}
+            {''.join(f'<li>{user}</li>' for user in overall.get('user_characteristics', []))}
         </ul>
         
         <h3>2.3 Constraints</h3>
         <ul>
-            {''.join(f'<li>{constraint}</li>' for constraint in srs_data['sections']['overall_description']['constraints'])}
+            {''.join(f'<li>{constraint}</li>' for constraint in overall.get('constraints', []))}
         </ul>
         
         <h3>2.4 Assumptions</h3>
         <ul>
-            {''.join(f'<li>{assumption}</li>' for assumption in srs_data['sections']['overall_description']['assumptions'])}
+            {''.join(f'<li>{assumption}</li>' for assumption in (overall.get('assumptions', []) if isinstance(overall.get('assumptions'), list) else [overall.get('assumptions')] if overall.get('assumptions') else []))}
         </ul>
         
         <h3>2.5 Dependencies</h3>
         <ul>
-            {''.join(f'<li>{dep}</li>' for dep in srs_data['sections']['overall_description']['dependencies'])}
+            {''.join(f'<li>{dep}</li>' for dep in overall.get('dependencies', []))}
         </ul>
     </div>
     

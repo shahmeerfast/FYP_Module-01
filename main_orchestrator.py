@@ -26,6 +26,7 @@ from typing import List, Dict, Any
 from module1_large_scale import RequirementsProcessor, Config
 from batch_processor import BatchProcessor
 from srs_generator import SRSGenerator
+from srs_model_generator import SRSModelGenerator
 from data_manager import DataManager
 
 class RequirementsOrchestrator:
@@ -38,7 +39,8 @@ class RequirementsOrchestrator:
         # Initialize components
         self.processor = RequirementsProcessor(self.config)
         self.batch_processor = BatchProcessor(self.config)
-        self.srs_generator = SRSGenerator()
+        self.srs_generator = SRSGenerator()  # exporters only
+        self.srs_model_generator = SRSModelGenerator()  # content generator
         self.data_manager = DataManager(
             data_dir=self.config.output_dir,
             db_file="requirements.db"
@@ -165,8 +167,8 @@ class RequirementsOrchestrator:
             records = self.data_manager.list_records(status='completed')
             results = [record.processed_data for record in records]
         
-        # Generate SRS
-        srs = self.srs_generator.generate_srs(results, project_info)
+        # Generate SRS via model
+        srs = self.srs_model_generator.generate_srs(results, project_info)
         
         # Export SRS
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

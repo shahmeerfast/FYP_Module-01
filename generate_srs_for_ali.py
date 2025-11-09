@@ -5,6 +5,7 @@ Simple SRS Generator for Ali requirement
 
 import json
 from srs_generator import SRSGenerator
+from srs_model_generator import SRSModelGenerator
 
 def main():
     # Load the Ali requirement data
@@ -18,9 +19,11 @@ def main():
         'version': '1.0'
     }
     
-    # Generate SRS
+    # Generate SRS using the model-driven generator
+    model_generator = SRSModelGenerator()
+    srs = model_generator.generate_srs(requirements_data, project_info)
+    # Reuse existing exporters for convenience
     generator = SRSGenerator()
-    srs = generator.generate_srs(requirements_data, project_info)
     
     # Export to files
     json_file = generator.export_to_json(srs, "srs_ali.json")

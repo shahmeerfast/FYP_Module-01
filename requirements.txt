@@ -13,13 +13,11 @@ pydub>=0.25.1
 # Data processing and storage
 pandas>=2.0.0
 numpy>=1.24.0
-sqlite3  # Built-in with Python
 pyarrow>=10.0.0  # For Parquet support
 
 # Utilities
 tqdm>=4.65.0
 python-dateutil>=2.8.0
-hashlib  # Built-in with Python
 
 # Optional: for better audio support
 ffmpeg-python>=0.2.0
@@ -28,3 +26,8 @@ ffmpeg-python>=0.2.0
 scikit-learn>=1.1.0
 matplotlib>=3.5.0
 seaborn>=0.11.0
+
+# Evaluation metrics
+rouge-score>=0.1.2
+bert-score>=0.3.13
+rapidfuzz>=3.6.1

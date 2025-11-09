@@ -9,11 +9,12 @@ const ResultsView = ({ results, onGenerateSRS }) => {
 
   const generateSRS = async () => {
     if (!results) return;
+    const items = Array.isArray(results) ? results : (Array.isArray(results?.results) ? results.results : [results]);
     
     setIsGeneratingSRS(true);
     try {
       const response = await axios.post('http://localhost:8000/api/generate-srs', {
-        results: results
+        results: items
       });
       
       setSrsData(response.data);
@@ -153,6 +154,9 @@ const ResultsView = ({ results, onGenerateSRS }) => {
     );
   }
 
+  // Normalize items for rendering (works for single or batch)
+  const items = Array.isArray(results) ? results : (Array.isArray(results?.results) ? results.results : [results]);
+
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
       <div className="bg-white rounded-xl card-shadow p-8">
@@ -205,9 +209,7 @@ const ResultsView = ({ results, onGenerateSRS }) => {
           </div>
           <div className="bg-green-50 p-6 rounded-lg">
             <h3 className="text-lg font-semibold text-green-900 mb-2">Requirements</h3>
-            <p className="text-2xl font-bold text-green-600">
-              {Array.isArray(results) ? results.length : 1}
-            </p>
+            <p className="text-2xl font-bold text-green-600">{items.length}</p>
           </div>
           <div className="bg-purple-50 p-6 rounded-lg">
             <h3 className="text-lg font-semibold text-purple-900 mb-2">Timestamp</h3>
@@ -219,13 +221,9 @@ const ResultsView = ({ results, onGenerateSRS }) => {
 
         {/* Detailed Results */}
         <div className="space-y-6">
-          {Array.isArray(results) ? (
-            results.map((result, index) => (
-              <RequirementCard key={index} result={result} index={index} />
-            ))
-          ) : (
-            <RequirementCard result={results} index={0} />
-          )}
+          {items.map((result, index) => (
+            <RequirementCard key={index} result={result} index={index} />
+          ))}
         </div>
       </div>
     </div>

@@ -46,8 +46,9 @@ class Config:
     """Configuration settings for Module 1"""
     # Model settings
     whisper_model_size: str = "small"
-    flan_model_name: str = "google/flan-t5-base"
+    flan_model_name: str = "google/flan-t5-small"
     spacy_model_name: str = "en_core_web_sm"
+    enable_whisper: bool = False
     
     # Processing settings
     max_workers: int = 4
@@ -79,8 +80,8 @@ class RequirementsProcessor:
         # Create directories
         self._create_directories()
         
-        # Load models
-        self._load_models()
+        # Lazy model load: defer heavy inits until first use
+        self.models_loaded = False
     
     def _setup_logging(self) -> logging.Logger:
         """Setup logging configuration"""
@@ -117,20 +118,26 @@ class RequirementsProcessor:
         self.logger.info("Loading models...")
         
         try:
-            # Load Whisper
-            self.logger.info("Loading Whisper model...")
-            self.models['whisper'] = whisper.load_model(self.config.whisper_model_size)
+            # Load Whisper (optional)
+            if self.config.enable_whisper:
+                self.logger.info("Loading Whisper model...")
+                self.models['whisper'] = whisper.load_model(self.config.whisper_model_size)
             
             # Load spaCy
             self.logger.info("Loading spaCy model...")
-            self.models['spacy'] = spacy.load(self.config.spacy_model_name)
+            try:
+                self.models['spacy'] = spacy.load(self.config.spacy_model_name)
+            except Exception as sp_err:
+                self.logger.warning(f"spaCy model '{self.config.spacy_model_name}' not found ({sp_err}); using blank 'en' pipeline")
+                self.models['spacy'] = spacy.blank('en')
             
             # Load Flan-T5
-            self.logger.info("Loading Flan-T5 model...")
+            self.logger.info(f"Loading Flan-T5 model ({self.config.flan_model_name})...")
             self.models['flan_tokenizer'] = T5Tokenizer.from_pretrained(self.config.flan_model_name)
             self.models['flan_model'] = T5ForConditionalGeneration.from_pretrained(self.config.flan_model_name)
             
             self.logger.info("All models loaded successfully!")
+            self.models_loaded = True
             
         except Exception as e:
             self.logger.error(f"Error loading models: {str(e)}")
@@ -147,8 +154,12 @@ class RequirementsProcessor:
             Processed requirement data
         """
         try:
+            if not getattr(self, 'models_loaded', False):
+                self._load_models()
             # Step 1: Input Collection and Transcription
             if input_data['type'] == 'audio':
+                if not self.config.enable_whisper:
+                    raise RuntimeError("Audio processing disabled: enable_whisper is False in config")
                 text = self._transcribe_audio(input_data['file_path'])
             else:
                 text = input_data['content']

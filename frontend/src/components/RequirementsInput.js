@@ -16,6 +16,7 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState([]);
+  const [showHelp, setShowHelp] = useState(false);
   
   // Audio recording states
   const [isRecording, setIsRecording] = useState(false);
@@ -104,27 +105,41 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Validation function for text input
+  // Derived helpers
+  const wordCount = (textInput || '').trim().split(/\s+/).filter(w => w.length > 0).length;
+  const hasLetter = /[A-Za-z]/.test(textInput || '');
+  const charCount = (textInput || '').length;
+  const minWords = 50;
+  const progressPct = Math.min(100, Math.round((wordCount / minWords) * 100));
+
+  const templates = [
+    {
+      label: 'User Management',
+      text: 'The system should allow users to register, log in, reset passwords, and update profiles. Administrators can manage user roles, permissions, and view audit logs. The platform must ensure strong security, including session management, rate limiting, and multi-factor authentication. Notifications should be sent for critical actions and profile changes. The system must scale to handle peak usage and maintain availability.'
+    },
+    {
+      label: 'E-commerce',
+      text: 'Users can browse products, search by keywords and filters, add items to cart, and checkout. Payments must be processed securely with receipts sent via email. Administrators can add, edit, and remove products, manage inventory, and review orders. The site should be responsive, accessible, and support promotional discounts and coupon codes.'
+    },
+    {
+      label: 'Analytics Dashboard',
+      text: 'The application provides interactive charts, filters, and export options for business KPIs. Users can create custom dashboards, schedule reports, and share insights with teams. Data must refresh periodically and maintain accuracy. Access control should restrict sensitive metrics to authorized roles.'
+    }
+  ];
+
+  // Validation function for text input (numbers/special symbols allowed, but must include letters)
   const validateTextInput = (text) => {
     const errors = [];
-    
-    // Check for numbers
-    if (/\d/.test(text)) {
-      errors.push('Text should not contain numbers');
+    const trimmed = text || '';
+    const wordCount = trimmed.trim().split(/\s+/).filter(word => word.length > 0).length;
+    // Require at least one alphabetic character
+    const hasLetter = /[A-Za-z]/.test(trimmed);
+    if (!hasLetter) {
+      errors.push('Text must include at least one alphabetic character (A-Z).');
     }
-    
-    // Check for special symbols (allow only letters, spaces, and basic punctuation including smart quotes)
-    // Allows: a-z, A-Z, spaces, . , ! ? - ' " and Unicode smart quotes/apostrophes
-    if (/[^a-zA-Z\s.,!?\-'"\u2018\u2019\u201C\u201D]/g.test(text)) {
-      errors.push('Text should not contain special symbols (only letters and basic punctuation allowed)');
-    }
-    
-    // Check minimum word count (50 words)
-    const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
     if (wordCount < 50) {
       errors.push(`Minimum 50 words required (current: ${wordCount} words)`);
     }
-    
     return errors;
   };
 
@@ -264,11 +279,14 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in">
-      <div className="bg-white rounded-xl card-shadow p-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-          Input Requirements
-        </h2>
+    <div className="max-w-5xl mx-auto animate-fade-in">
+      {/* Decorative gradient background */}
+      <div className="relative rounded-2xl overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50" aria-hidden="true"></div>
+        <div className="relative bg-white/70 backdrop-blur rounded-2xl card-shadow p-8">
+          <h2 className="text-3xl md:text-4xl font-extrabold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+            Input Requirements
+          </h2>
 
         {/* Project Information */}
         <div className="mb-8">
@@ -282,7 +300,7 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
                 type="text"
                 value={projectInfo.title}
                 onChange={(e) => setProjectInfo(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-300 transition"
                 placeholder="Enter project title"
               />
             </div>
@@ -294,7 +312,7 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
                 type="text"
                 value={projectInfo.author}
                 onChange={(e) => setProjectInfo(prev => ({ ...prev, author: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-300 transition"
                 placeholder="Enter author name"
               />
             </div>
@@ -306,7 +324,7 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
                 type="text"
                 value={projectInfo.version}
                 onChange={(e) => setProjectInfo(prev => ({ ...prev, version: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-300 transition"
                 placeholder="1.0"
               />
             </div>
@@ -316,13 +334,13 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
         {/* Input Type Selection */}
         <div className="mb-8">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">Input Method</h3>
-          <div className="flex space-x-4 mb-6">
+          <div className="flex flex-wrap gap-3 mb-6">
             <button
               onClick={() => setInputType('text')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200 ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 shadow-sm ${
                 inputType === 'text' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white scale-[1.02]' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               <FileText className="h-4 w-4" />
@@ -330,10 +348,10 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
             </button>
             <button
               onClick={() => setInputType('audio')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200 ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 shadow-sm ${
                 inputType === 'audio' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white scale-[1.02]' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               <Mic className="h-4 w-4" />
@@ -341,10 +359,10 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
             </button>
             <button
               onClick={() => setInputType('file')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200 ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 shadow-sm ${
                 inputType === 'file' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white scale-[1.02]' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               <Upload className="h-4 w-4" />
@@ -362,20 +380,77 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
                 value={textInput}
                 onChange={handleTextInputChange}
                 rows={8}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  validationErrors.length > 0 ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                className={`w-full px-3 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${
+                  validationErrors.length > 0 ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'
                 }`}
                 placeholder="Enter your requirements here..."
               />
+
+              {/* Progress bar */}
+              <div className="mt-2 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${progressPct >= 100 ? 'bg-green-500' : 'bg-blue-500'} transition-all duration-300`}
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+
+              {/* Live counters and badges */}
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full border ${
+                  hasLetter ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
+                }`}>
+                  {hasLetter ? 'Letters detected' : 'Add at least one letter'}
+                </span>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full border ${
+                  wordCount >= minWords ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                }`}>
+                  {wordCount} / {minWords} words
+                </span>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full border bg-gray-50 text-gray-700 border-gray-200">
+                  {charCount} characters
+                </span>
+              </div>
               
-              {/* Validation Guidelines */}
+              {/* Validation Guidelines */
+              }
               <div className="mt-2 text-sm text-gray-600">
                 <p className="font-medium mb-1">Requirements:</p>
                 <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>No numbers allowed</li>
-                  <li>No special symbols (only letters and basic punctuation: . , ! ? - ' ")</li>
                   <li>Minimum 50 words required</li>
+                  <li>Numbers and symbols allowed, but include at least one letter</li>
                 </ul>
+              </div>
+
+              {/* Quick templates */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-gray-700">Quick templates</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowHelp(!showHelp)}
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    {showHelp ? 'Hide tips' : 'Show tips'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {templates.map((t) => (
+                    <button
+                      key={t.label}
+                      type="button"
+                      onClick={() => setTextInput(prev => (prev?.trim() ? `${prev.trim()}\n\n${t.text}` : t.text))}
+                      className="px-3 py-1.5 text-sm rounded-full border bg-white hover:bg-blue-50 text-gray-700 hover:text-blue-700 border-gray-200 hover:border-blue-200 transition"
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {showHelp && (
+                  <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-100 text-xs text-blue-800">
+                    Aim for clear, complete sentences. Mention actors (users/admins), actions, constraints (security/performance), and any integrations. Avoid ambiguous terms like "fast" or "user-friendly" without specifics.
+                  </div>
+                )}
               </div>
 
               {/* Validation Errors */}
@@ -403,8 +478,6 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
               <div className="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                 <p className="font-medium mb-1">Recording Requirements:</p>
                 <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>No numbers allowed in speech</li>
-                  <li>No special symbols (only letters and basic punctuation: . , ! ? - ' ")</li>
                   <li>Minimum 50 words required</li>
                   <li>Speak clearly and at a moderate pace</li>
                 </ul>
@@ -479,8 +552,6 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
               <div className="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                 <p className="font-medium mb-1">File Content Requirements:</p>
                 <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>No numbers allowed in content</li>
-                  <li>No special symbols (only letters and basic punctuation: . , ! ? - ' ")</li>
                   <li>Minimum 50 words required per file</li>
                   <li>Supported formats: .txt, .wav, .mp3, .m4a, .flac</li>
                 </ul>
@@ -567,7 +638,7 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
           <button
             onClick={processRequirements}
             disabled={isProcessing || (!textInput.trim() && uploadedFiles.length === 0 && !audioBlob) || (inputType === 'text' && validationErrors.length > 0)}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-8 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center space-x-2 mx-auto"
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-400 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center space-x-2 mx-auto shadow-md hover:shadow-lg"
           >
             {isProcessing ? (
               <>
@@ -595,6 +666,7 @@ const RequirementsInput = ({ onResultsGenerated, onSRSGenerated }) => {
             </p>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
