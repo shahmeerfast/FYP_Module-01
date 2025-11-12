@@ -75,6 +75,7 @@ srs_*.json
 !srs_ali.html
 !srs_ali.json
 *.html
+!frontend/public/index.html
 *.json
 !config_large_scale.json
 !package.json
